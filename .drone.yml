@@ -2134,7 +2134,10 @@ steps:
 
 services:
 - name: fake-s3
-  image: lphoward/fake-s3:latest
+  image: minio/minio
+  environment:
+    MINIO_ACCESS_KEY: dummy
+    MINIO_SECRET_KEY: dummy
 
 trigger:
   branch:
