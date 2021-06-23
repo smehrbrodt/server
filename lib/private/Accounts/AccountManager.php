@@ -369,18 +369,19 @@ class AccountManager implements IAccountManager {
 	 * @return array
 	 */
 	protected function addMissingDefaultValues(array $userData) {
-		foreach ($userData as $key => $value) {
-			if (!isset($userData[$key]['verified']) && !$this->isCollection($key)) {
-				$userData[$key]['verified'] = self::NOT_VERIFIED;
-			}
-			if ($this->isCollection($key)) {
-				foreach ($value as &$singlePropertyData) {
-					$singlePropertyData['name'] = $key;
+		foreach ($userData as $nameOrIndex => $propertyData) {
+			if (!isset($userData[$nameOrIndex]['verified'])) {
+				if (!$this->isCollection(isset($userData[$nameOrIndex]['name']) ? $userData[$nameOrIndex]['name'] : $nameOrIndex)) {
+					$userData[$nameOrIndex]['verified'] = self::NOT_VERIFIED;
 				}
-			} else {
-				$userData[$key]['name'] = $key;
+			}
+			if ($this->isCollection(isset($userData[$nameOrIndex]['name']) ? $userData[$nameOrIndex]['name'] : $nameOrIndex)) {
+				foreach ($propertyData as $singelPropertyIndex => &$singlePropertyData) {
+					$singlePropertyData['name'] = $singelPropertyIndex;
+				}
 			}
 		}
+
 		if (!isset($userData[IAccountManager::COLLECTION_EMAIL])) {
 			$userData[IAccountManager::COLLECTION_EMAIL] = [];
 		}
@@ -424,7 +425,9 @@ class AccountManager implements IAccountManager {
 				if (!isset($jsonData[$property])) {
 					$jsonData[$property] = [];
 				}
-				$jsonData[$property][] = $data;
+				if (!empty($data)) {
+					$jsonData[$property][] = $data;
+				}
 			} else {
 				$jsonData[$property] = $data;
 			}
@@ -492,6 +495,7 @@ class AccountManager implements IAccountManager {
 			if (isset($property['name']) && $property['name'] === self::PROPERTY_AVATAR) {
 				continue;
 			}
+			// write to db as nested
 			if ($this->isCollection($property['name'] ?? $propertyName) && !isset($property['name'])) {
 				foreach ($property as $singleProperty) {
 					$this->writeUserDataProperties($query, [$propertyName => $singleProperty]);
@@ -581,11 +585,12 @@ class AccountManager implements IAccountManager {
 
 	private function parseAccountData(IUser $user, $data): Account {
 		$account = new Account($user);
-		foreach ($data as $property => $accountData) {
-			if ($this->isCollection($property)) {
-				$account->setPropertyCollection($this->arrayDataToCollection($property, $accountData));
+		foreach ($data as $propertyNameOrIndex => $accountData) {
+			$propertyName = isset($data[$propertyNameOrIndex]['name']) ? $data[$propertyNameOrIndex]['name'] : $propertyNameOrIndex;
+			if ($this->isCollection($propertyName)) {
+				$account->setPropertyCollection($this->arrayDataToCollection($propertyName, $accountData));
 			} else {
-				$account->setProperty($property, $accountData['value'] ?? '', $accountData['scope'] ?? self::SCOPE_LOCAL, $accountData['verified'] ?? self::NOT_VERIFIED);
+				$account->setProperty($propertyName, $accountData['value'] ?? '', $accountData['scope'] ?? self::SCOPE_LOCAL, $accountData['verified'] ?? self::NOT_VERIFIED);
 			}
 		}
 		return $account;
